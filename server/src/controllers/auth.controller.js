@@ -13,22 +13,33 @@ function generateToken(userId) {
 async function registerUser(req, res) {
   try {
     const { name, phone, email, password } = req.body;
+    console.log('=== REGISTRATION ===');
+    console.log('Phone:', phone);
+    console.log('Password received:', password);
+    console.log('Password length (raw):', password.length);
+    
     if (!name || !phone || !password) {
       return res.status(400).json({ error: "Name, phone, and password are required" });
     }
     // Check if user exists by phone or email
     const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
     if (existingUser) {
+      console.log('User already exists:', phone);
       return res.status(409).json({ error: "User already exists with this phone or email" });
     }
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    // Create user
+    // Trim password to remove whitespace
+    const trimmedPassword = password.trim();
+    console.log('Password after trim:', trimmedPassword);
+    console.log('Password length (trimmed):', trimmedPassword.length);
+    
+    console.log('Saving user with trimmed password (hashing handled by schema)');
+    console.log('===================');
+    // Create user (schema pre-save hook will hash password)
     const user = await User.create({
       name,
       phone,
       email,
-      password: hashedPassword,
+      password: trimmedPassword,
     });
     // Create empty onboarding doc
     await Onboarding.create({ userId: user._id });
@@ -53,14 +64,31 @@ async function registerUser(req, res) {
 async function loginUser(req, res) {
   try {
     const { phone, password } = req.body;
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Phone:', phone);
+    console.log('Password received:', password);
+    console.log('Password length (raw):', password.length);
+    
     if (!phone || !password) {
       return res.status(400).json({ error: "Phone and password are required" });
     }
     const user = await User.findOne({ phone });
     if (!user) {
+      console.log('❌ User NOT FOUND for phone:', phone);
+      console.log('====================');
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    const isMatch = await bcrypt.compare(password, user.password);
+    console.log('✅ User FOUND:', user.phone);
+    
+    // Trim password to match registration
+    const trimmedPassword = password.trim();
+    console.log('Password after trim:', trimmedPassword);
+    console.log('Password length (trimmed):', trimmedPassword.length);
+    
+    const isMatch = await bcrypt.compare(trimmedPassword, user.password);
+    console.log('Password match result:', isMatch);
+    console.log('====================');
+    
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -76,6 +104,7 @@ async function loginUser(req, res) {
       token: generateToken(user._id),
     });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ error: err.message });
   }
 }
@@ -121,8 +150,34 @@ async function updateProfile(req, res) {
   }
 }
 
+// Delete user by phone (for testing only - remove in production!)
+async function deleteUserByPhone(req, res) {
+  try {
+    const { phone } = req.params;
+    console.log('Deleting user with phone:', phone);
+    
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Delete associated onboarding record
+    await Onboarding.deleteOne({ userId: user._id });
+    
+    // Delete user
+    await User.deleteOne({ phone });
+    
+    console.log('User deleted successfully:', phone);
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   registerUser,
   loginUser,
   updateProfile,
+  deleteUserByPhone,
 };

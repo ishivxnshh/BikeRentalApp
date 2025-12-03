@@ -21,7 +21,7 @@ export default function SplashScreenComponent({ navigation }) {
     if (!token || !userData) {
       // No saved session, go to auth
       await SplashScreen.hideAsync();
-      navigation.replace('Auth');
+      navigation.replace('Login');
       return;
     }
 

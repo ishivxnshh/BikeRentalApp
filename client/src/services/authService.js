@@ -6,7 +6,8 @@ export const authService = {
       const response = await api.post('/auth/login', { phone, password });
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message || 'Login failed' };
+      const errorMessage = error.response?.data?.error || error.message || 'Login failed';
+      return { success: false, message: errorMessage };
     }
   },
 
@@ -15,7 +16,8 @@ export const authService = {
       const response = await api.post('/auth/register', { name, phone, email, password });
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message || 'Registration failed' };
+      const errorMessage = error.response?.data?.error || error.message || 'Registration failed';
+      return { success: false, message: errorMessage };
     }
   },
 };
